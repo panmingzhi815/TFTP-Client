@@ -15,11 +15,15 @@ namespace TFTP_Client
 
     class Client
     {
-        private String host = "newsreader88.eweka.nl";
+
+        private String host;
         private int port = 119;
         private Socket sock = null;
+        private int dstPort = 69;
         private static byte[] DELIMITER = new byte[] { 0x00 };
-
+        private Boolean connected = false;
+        private FileStream sendingFileStream = null;
+        private String sendingFilename = null;
 
         /**
          *   OPERATION CODES RFC1350
@@ -76,7 +80,7 @@ namespace TFTP_Client
 
         }
 
-        public void put()
+        public void optAck()
         {
 
         }
@@ -95,7 +99,7 @@ namespace TFTP_Client
         {
 
         }
-
+        
         //Setter and getter for ClientState
         public void setClientState(ClientState state){
             this.clientState = state;
@@ -107,12 +111,47 @@ namespace TFTP_Client
         }
         */
 
-        private void sendWriteRequest(String filename)
+        /**
+         * This sends a data block from the file
+         * 
+         * From http://tools.ietf.org/html/rfc1350 Sending a
+         * DATA packet is an acknowledgment for the first ACK packet of the
+         * previous DATA packet. The WRQ and DATA packets are acknowledged by
+         * ACK or ERROR packets, while RRQ
+         */
+        private void sendDataBlock(int blockNumber) {
+
+            //as we have a standard of about 2048 bytes we send them immediately, we use the same file pointer again
+            //lets first read the data into an array of bytes
+            if (sendingFileStream == null)
+                sendingFileStream = File.OpenRead(sendingFilename);
+
+            byte[] blockData = new byte[2048];
+            sendingFileStream.Read(blockData, 2048 * (blockNumber - 1), 2048);
+
+            //send the operation code for sending a file 
+            sendOpCode(OpCode.Data);
+
+            //since the block number is contained in the same format like the operation code (2 bytes) we can use the same method
+            sendOpCode((short)blockNumber);
+            
+            //send the data
+            sock.Send(blockData);
+
+            clientState.ack();
+        }
+
+
+        /**
+         * This method sends a write request to the server, with the given Filename
+         * Argument must include the full path to the file
+         */
+        private void sendWriteRequest()
         {
             sendOpCode(OpCode.WriteReq);
 
             //Send the filename string into the socket
-            sendString(Path.GetFileName(filename), true); 
+            sendString(Path.GetFileName(sendingFilename), true); 
 
             //send octet format information
             sendString("octet", true);
@@ -121,7 +160,7 @@ namespace TFTP_Client
             sendString("tsize", true); 
 
             //send the actual size
-            FileInfo fi = new FileInfo(filename);
+            FileInfo fi = new FileInfo(sendingFilename);
             String size = ((Int64)fi.Length).ToString();
             sendString(size, true);
 
@@ -141,7 +180,10 @@ namespace TFTP_Client
             sendString("x-resume", true);
 
             //send resume information value
-            sendString("0", true);   
+            sendString("0", true);
+
+            clientState.ack();
+
         }
 
         private void sendString(String str, bool withDelimiter) {
@@ -160,7 +202,6 @@ namespace TFTP_Client
                 Console.Write("Exception in writing socket string: " + e.Message);
             }
             
-        
         }
 
         private byte[] shortToBytes(short number){
@@ -183,44 +224,26 @@ namespace TFTP_Client
             sock.Send(opcode);
         }
 
-        private void connect()
+        private void connect(String ip, int port)
         {
-
-            IPHostEntry hostEntry = Dns.GetHostEntry(host);
-            IPAddress[] ipAddresses = hostEntry.AddressList;
-
-            // Console.WriteLine(host + " is mapped to the IP-Address(es): ");
-
-            foreach (IPAddress ipAddress in ipAddresses)
+            try
             {
-                // Console.Write(ipAddress.ToString());
+                //set a new endpoint
+                IPEndPoint ipEo = new IPEndPoint(IPAddress.Parse(ip), port);
+
+                //assign a new socket with the given endpoint to the sock instance variable
+                sock = new Socket(ipEo.AddressFamily,
+                                  SocketType.Stream,
+                                  ProtocolType.Udp);
+
+                //connect
+                sock.Connect(ipEo);
+
+                //set the instance variable
+                connected = (sock.Connected);
             }
-
-            IPEndPoint ipEo = new IPEndPoint(ipAddresses[0], port);
-
-
-            sock = new Socket(ipEo.AddressFamily,
-                              SocketType.Stream,
-                              ProtocolType.Udp);
-
-
-            sock.Connect(ipEo);
-
-
-            if (sock.Connected)
-            {
-                sock.Receive(new byte[256], 256, SocketFlags.None);
-                try  {
-                    byte[] msg = Encoding.ASCII.GetBytes();
-
-                    byte[] bytes = new byte[512];
-
-                    int i = sock.Send(msg, msg.Length, SocketFlags.None);
-                    int byteCount = sock.Receive(bytes, 512, SocketFlags.None);
-                    
-                }  catch (System.Net.Sockets.SocketException e) {
-                    Console.WriteLine("Error: "+ e.Message);
-                }
+            catch (SocketException e) {
+                Console.WriteLine("FATAL, cannot connect to host with address " + ip + " " + e.Message);
             }
         }
                 

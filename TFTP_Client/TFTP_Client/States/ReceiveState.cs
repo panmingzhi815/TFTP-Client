@@ -19,7 +19,7 @@ namespace TFTP_Client.States
 
         }
 
-        public override void put()
+        public override void optAck()
         {
 
         }

@@ -19,7 +19,7 @@ namespace TFTP_Client.States
             Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
-        public override void put()
+        public override void optAck()
         {
 
         }
