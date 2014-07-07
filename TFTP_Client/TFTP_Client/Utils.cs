@@ -8,6 +8,7 @@ namespace TFTP_Client
 {
     class Utils
     {
+        //exclusive!
         public static byte[] partByteArray(byte[] input, int begin, int end)
         {
 

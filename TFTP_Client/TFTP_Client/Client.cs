@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Net;
+using System.Windows.Forms;
 using System.Net.Sockets;
 using TFTP_Client.States;
 
@@ -15,7 +18,7 @@ namespace TFTP_Client
 
     class Client
     {
-
+        private static IPEndPoint AnyEnpoint = new IPEndPoint(IPAddress.Any, 0);
         private String host;
         //private Socket sock = null;
         private Int16 dstPort = 69;
@@ -23,9 +26,13 @@ namespace TFTP_Client
         private Boolean connected = false;
         private FileStream sendingFileStream = null;
         private String sendingFilename = null;
-        private UdpClient udpClient;
+        private UdpClient udpClient, receivingClient;
+        private IPEndPoint ipEndPoint;
+        byte[] sendingPacket;
+        int bytesToBeSend;
 
         public void setSendingFilename(String f) {
+            
             this.sendingFilename = f;
         }
 
@@ -57,7 +64,8 @@ namespace TFTP_Client
 
                 //for the public static access getInstance we set the variable first
                 _instance = new Client();
-                Console.WriteLine("FATAL @ Client.getInstance: _instance is null");
+                _instance.sendingPacket = new byte[4096];
+                
             }
             
 
@@ -93,6 +101,7 @@ namespace TFTP_Client
                 connect();
                 sendWriteRequest();
 
+                Console.WriteLine("waiting for ack");
                 //wait for acknowledgement
                 this.clientState.ack();
                 receiveOptAck();
@@ -109,46 +118,19 @@ namespace TFTP_Client
             return (short)(buf[0] * 255 + buf[1]);
         }
 
-        private void receiveOptAck() { 
+        private void receiveOptAck() {
+             
+            
+            byte[] receiveBytes = receivingClient.Receive(ref AnyEnpoint);
 
+            Console.WriteLine("Alri");
             //the operation code should be 6
-            byte[] buff = new byte[2];
-            sock.Receive(buff, 2, SocketFlags.None);
+            byte[] buff = Utils.partByteArray(receiveBytes, 0, 2);
 
             if (toShort(buff) == 6)
             {
-                //good case
-                byte[] wholebuff = new byte[2048];
-                byte[] lastCapture = new byte[2048];
-                bool loopEntered = false;
-
-                int count;
-
-                while (true) {
-
-                    count = sock.Receive(lastCapture, 2048, SocketFlags.None);
-
-                    lastCapture = Utils.partByteArray(lastCapture, 0, count);
-
-                    if (!loopEntered)
-                    {
-                        loopEntered = true;
-                        wholebuff = lastCapture;
-                    }
-                    else {
-                        wholebuff = Utils.concatByteArrays(wholebuff, lastCapture);
-                    }
-
-                    //now when all is concatenated we test if there's a timeout option given from the server, just test the string timeout
-                    if (Encoding.ASCII.GetString(wholebuff).Contains("timeout") &&
-                        wholebuff[wholebuff.Length - 1] == (byte)0x00) { 
-
-                        //we can break the loop
-                        break;
-                    }
-
-                }
-
+                //ok
+                Console.WriteLine(Encoding.ASCII.GetString(receiveBytes));
 
                 //everythings alright
                 Console.WriteLine("Alright! We can start uploading! But ask user!");
@@ -157,8 +139,6 @@ namespace TFTP_Client
                 //change the state to sending an then send the data block #1
                 clientState.send();
                 sendDataBlock(1);
-
-
 
             }
             else {
@@ -207,7 +187,7 @@ namespace TFTP_Client
             sendOpCode((short)blockNumber);
             
             //send the data
-            sock.Send(blockData);
+            udpClient.Send(blockData, blockData.Length);
 
             clientState.ack();
         }
@@ -219,6 +199,9 @@ namespace TFTP_Client
          */
         private void sendWriteRequest()
         {
+
+            startPacket();
+
             sendOpCode(OpCode.WriteReq);
 
             //Send the filename string into the socket
@@ -252,8 +235,13 @@ namespace TFTP_Client
 
             //send resume information value
             sendString("0", true);
-             
 
+            commit();
+        }
+
+        private void commit() {
+            udpClient.Send(sendingPacket, bytesToBeSend);
+            bytesToBeSend = 0;
         }
 
         private void sendString(String str, bool withDelimiter) {
@@ -262,11 +250,12 @@ namespace TFTP_Client
             
             try
             {
-                sock.Send(msg, msg.Length, SocketFlags.None);
+                appendToSendingPacket(msg, msg.Length);
 
                 if (withDelimiter)
                     //send the delimiter which is the byte 0x00
-                    sock.Send(DELIMITER, 1, SocketFlags.None);
+                    appendToSendingPacket(DELIMITER, 1);
+                    
             }
             catch (SocketException e) {
                 Console.Write("Exception in writing socket string: " + e.Message);
@@ -291,52 +280,48 @@ namespace TFTP_Client
             byte[] opcode = shortToBytes(operationCode);
 
             //put into the socket
-            sock.Send(opcode);
+            appendToSendingPacket(opcode, 2);
+            
+        }
+
+        private void appendToSendingPacket(byte[] arr, int length)
+        {
+            
+            for (int i = 0; i < length; i++) { 
+                sendingPacket[bytesToBeSend+i] = arr[i];
+            }
+
+            bytesToBeSend += length;
+        }
+
+        private void startPacket()
+        {
+            bytesToBeSend = 0;
         }
 
         private void connect()
         {
             try
             {
-                //set a new endpoint
-                IPEndPoint ipEo = new IPEndPoint(IPAddress.Parse(host), dstPort);
-
-                //assign a new socket with the given endpoint to the sock instance variable
-                sock = new Socket(ipEo.AddressFamily,
-                                  SocketType.Stream,
-                                  ProtocolType.Udp);
-
-                udpClient = new UdpClient(ipEo);
                 
+                //set a new endpoint
+                ipEndPoint = new IPEndPoint(IPAddress.Parse(host), dstPort);
 
+                //assign a new udp Client with the given endpoint to the sock instance variable
+                udpClient = new UdpClient();
+                
+                udpClient.Connect(ipEndPoint);
+                 
+                receivingClient = new UdpClient(((IPEndPoint)udpClient.Client.LocalEndPoint).Port);
+                
             }
             catch (SocketException e) {
                 Console.WriteLine("FATAL, cannot connect to host with address " + host + " " + e.Message);
+                
             }
         }
 
-
-        private void receiveData() {
-
-            int byteCount;
-
-            try
-            {
-                while (true)
-                {
-
-                    byte[] bbb = new byte[2048];
-                    byteCount = sock.Receive(bbb, 2048, SocketFlags.None);
-                    
-                }
-            }
-
-            catch (System.Net.Sockets.SocketException e)
-            {
-                Console.WriteLine(e.ErrorCode+":  "+e.Message);
-            }
-        
-        }
+ 
                 
     }
 }

@@ -16,6 +16,8 @@ namespace TFTP_Client
         public Form1()
         {
             InitializeComponent();
+
+            
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -60,7 +62,7 @@ namespace TFTP_Client
         {
 
             Client.getInstance().upload(textBox1.Text, textBoxIP.Text, textBoxPort.Text);
-
+            
         }
 
         
