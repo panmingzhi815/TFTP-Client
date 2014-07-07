@@ -19,7 +19,7 @@ namespace TFTP_Client.States
 
         }
 
-        public override void optAck()
+        public override void put()
         {
 
         }
@@ -31,7 +31,7 @@ namespace TFTP_Client.States
 
         public override void send()
         {
-
+            Client.getInstance().setClientState(new SendState());
         }
 
         public override void ack()

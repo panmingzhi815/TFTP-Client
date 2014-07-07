@@ -33,9 +33,9 @@
             this.label1 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.textBox4 = new System.Windows.Forms.TextBox();
+            this.textBoxIP = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
-            this.textBox3 = new System.Windows.Forms.TextBox();
+            this.textBoxPort = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
@@ -92,8 +92,8 @@
             // groupBox2
             // 
             this.groupBox2.Controls.Add(this.label3);
-            this.groupBox2.Controls.Add(this.textBox3);
-            this.groupBox2.Controls.Add(this.textBox4);
+            this.groupBox2.Controls.Add(this.textBoxPort);
+            this.groupBox2.Controls.Add(this.textBoxIP);
             this.groupBox2.Controls.Add(this.label2);
             this.groupBox2.Location = new System.Drawing.Point(13, 13);
             this.groupBox2.Name = "groupBox2";
@@ -102,14 +102,14 @@
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Remote TFTP-Server";
             // 
-            // textBox4
+            // textBoxIP
             // 
-            this.textBox4.Location = new System.Drawing.Point(20, 47);
-            this.textBox4.Name = "textBox4";
-            this.textBox4.Size = new System.Drawing.Size(129, 20);
-            this.textBox4.TabIndex = 4;
-            this.textBox4.Text = "127.0.0.1";
-            this.textBox4.TextChanged += new System.EventHandler(this.textBox4_TextChanged);
+            this.textBoxIP.Location = new System.Drawing.Point(20, 47);
+            this.textBoxIP.Name = "textBoxIP";
+            this.textBoxIP.Size = new System.Drawing.Size(129, 20);
+            this.textBoxIP.TabIndex = 4;
+            this.textBoxIP.Text = "127.0.0.1";
+            this.textBoxIP.TextChanged += new System.EventHandler(this.textBox4_TextChanged);
             // 
             // label2
             // 
@@ -120,13 +120,13 @@
             this.label2.TabIndex = 5;
             this.label2.Text = "Remote Address (IP)";
             // 
-            // textBox3
+            // textBoxPort
             // 
-            this.textBox3.Location = new System.Drawing.Point(163, 47);
-            this.textBox3.Name = "textBox3";
-            this.textBox3.Size = new System.Drawing.Size(72, 20);
-            this.textBox3.TabIndex = 6;
-            this.textBox3.Text = "69";
+            this.textBoxPort.Location = new System.Drawing.Point(163, 47);
+            this.textBoxPort.Name = "textBoxPort";
+            this.textBoxPort.Size = new System.Drawing.Size(72, 20);
+            this.textBoxPort.TabIndex = 6;
+            this.textBoxPort.Text = "69";
             // 
             // label3
             // 
@@ -145,6 +145,7 @@
             this.button2.TabIndex = 4;
             this.button2.Text = "Upload";
             this.button2.UseVisualStyleBackColor = true;
+            this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
             // groupBox3
             // 
@@ -223,8 +224,8 @@
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.TextBox textBox3;
-        private System.Windows.Forms.TextBox textBox4;
+        private System.Windows.Forms.TextBox textBoxPort;
+        private System.Windows.Forms.TextBox textBoxIP;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Button button3;

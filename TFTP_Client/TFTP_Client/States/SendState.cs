@@ -16,12 +16,12 @@ namespace TFTP_Client.States
 
         public override void get()
         {
-
+            throw new InvalidOperationException("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
-        public override void optAck()
+        public override void put()
         {
-
+            throw new InvalidOperationException("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void receive()
@@ -31,12 +31,12 @@ namespace TFTP_Client.States
 
         public override void send()
         {
-            Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
+            throw new InvalidOperationException("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void ack()
         {
-
+            Client.getInstance().setClientState(new AckState());
         }
     }
 }

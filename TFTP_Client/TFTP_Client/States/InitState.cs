@@ -16,28 +16,27 @@ namespace TFTP_Client.States
 
         public override void get()
         {
-            GetState state = new GetState();
-            Client.getInstance().get();
+            Client.getInstance().setClientState(new GetState());
         }
 
-        public override void optAck()
+        public override void put()
         {
-
+            Client.getInstance().setClientState(new PutState());
         }
 
         public override void receive()
         {
-
+            Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void send()
         {
-
+            Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void ack()
         {
-
+            Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
     }
 }

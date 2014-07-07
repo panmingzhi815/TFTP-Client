@@ -16,11 +16,6 @@ namespace TFTP_Client
         public Form1()
         {
             InitializeComponent();
-
-
-            Client client = new Client();
-
-
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -58,6 +53,13 @@ namespace TFTP_Client
 
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
+
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+
+            Client.getInstance().upload(textBox1.Text, textBoxIP.Text, textBoxPort.Text);
 
         }
 

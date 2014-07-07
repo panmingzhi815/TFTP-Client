@@ -13,7 +13,7 @@ namespace TFTP_Client.States
 
         abstract public void get();
 
-        abstract public void optAck();
+        abstract public void put();
 
         abstract public void receive();
 
