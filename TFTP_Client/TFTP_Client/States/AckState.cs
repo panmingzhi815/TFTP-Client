@@ -11,22 +11,22 @@ namespace TFTP_Client.States
     {
         public override void init()
         {
-            Client.getInstance().setClientState(new InitState());
+            Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void get()
         {
-
+            Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void put()
         {
-
+            Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void receive()
         {
-
+            Client.getInstance().setClientState(new ReceiveState());
         }
 
         public override void send()

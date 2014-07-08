@@ -39,7 +39,6 @@ namespace TFTP_Client
         int bytesToBeSend;
 
         public void setSendingFilename(String f) {
-            
             this.sendingFilename = f;
         }
 
@@ -105,13 +104,11 @@ namespace TFTP_Client
                 this.dstPort = Int16.Parse(port);
 
                 //change to send state and send a write request
-                this.clientState.send();
                 connect();
                 sendWriteRequest();
 
                 Console.WriteLine("waiting for ack");
                 //wait for acknowledgement
-                this.clientState.ack();
                 receiveOptAck();
                 
             }
@@ -140,7 +137,6 @@ namespace TFTP_Client
             udpClient.Client.ReceiveTimeout = 30000;
             byte[] receiveBytes = udpClient.Receive(ref endpoint);
 
-
             Console.WriteLine("output " + receiveBytes.Length);
             
             //the operation code should be 6
@@ -150,88 +146,24 @@ namespace TFTP_Client
                 //everythings alright
                 Console.WriteLine("Alright! We can start uploading! But ask user!");
 
+                System.Type state = this.clientState.GetType();
 
-                //change the state to sending an then send the data block #1
-                this.clientState.send();
-
-                udpClient.Connect(endpoint);
-
-                Console.WriteLine("hans ist da: " + sendingFileSize / 2048);
-                int dataGramCount = (int) Math.Ceiling(sendingFileSize / 2048.0d);
-                int receivedAcks = 0;
-                for (int i = 1; i <= dataGramCount; i++)
+                if (state == typeof(PutState))
                 {
-
-                    this.clientState.send();
-                    this.startPacket();
-                    this.sendDataBlock(i);
-                    this.commit();
-                    int timedOutCountInARow = 0;
-                    this.clientState.ack();
-                    udpClient.Client.ReceiveTimeout = 5000;
-                    byte[] ack;
-
-                    try
-                    {
-                        ack = udpClient.Receive(ref endpoint);
-
-                        //get the block nr in the ack frame
-                        byte[] blockNr = Utils.partByteArray(ack, 2, 4);
-
-                        //reset  timedOutCountInARow on success
-                        timedOutCountInARow = 0;
-
-                        if (toShort(ack) == 4 && toShort(blockNr) == i)
-                        {
-
-                            //good one
-                            Console.WriteLine("ack received of blockNr " + i);
-                            receivedAcks++;
-
-                        }
-                        else
-                        {
-
-                            throw new InvalidDataException("invalid data received: received " + toShort(ack) + " and " + toShort(blockNr) + ", but expected: 4 and " + i);
-                        }
-
-                        
-
-                    }
-                    catch (SocketException e) {
-
-                        if (e.SocketErrorCode == SocketError.TimedOut)
-                        {
-                            //retransmission! //set the filepointer
-                            if (sendingFileStream.CanSeek == false)
-                            {
-                                Console.WriteLine("sorry, the filestream cannot seek! FATAL ERROR!");
-                            }
-                            sendingFileStream.Seek((i - 1) * 2048, SeekOrigin.Begin);
-                            i--;
-                            timedOutCountInARow++;
-                            if (timedOutCountInARow >= 3)
-                            {
-                                break;
-                            }
-
-                        }
-                        else {
-
-                            Console.WriteLine("error: " + e.Message);
-
-                        }
-                    }
-
+                    beginUploadingDataPackets(endpoint);
                 }
-
-                if (receivedAcks == dataGramCount) {
-
-                    Console.WriteLine("Package sent successfully");
-                    //go back to init state
-                    this.clientState.init();
+                else if (state == typeof(GetState))
+                {
+                    udpClient.Connect(endpoint);
                     
+                    //send acknowledge
+                    startPacket(); 
+                    sendOpCode(OpCode.Ack);
+                    sendOpCode(0x00); //send the block no. 0
+
+                    commit();
                 }
+                
 
 
             }
@@ -240,6 +172,94 @@ namespace TFTP_Client
                 Console.WriteLine("Unknown operation from Server: " + toShort(receiveBytes)); 
             }
 
+        }
+
+
+
+        private void beginUploadingDataPackets(IPEndPoint endpoint)
+        {
+             
+            udpClient.Connect(endpoint);
+
+            Console.WriteLine("hans ist da: " + sendingFileSize / 2048);
+            int dataGramCount = (int)Math.Ceiling(sendingFileSize / 2048.0d);
+            int receivedAcks = 0;
+            for (int i = 1; i <= dataGramCount; i++)
+            {
+
+                //change the state to sending an then send the data block #i
+                this.clientState.send();
+                this.startPacket();
+                this.sendDataBlock(i);
+                this.commit();
+                int timedOutCountInARow = 0;
+                this.clientState.ack();
+                udpClient.Client.ReceiveTimeout = 5000;
+                byte[] ack;
+
+                try
+                {
+                    ack = udpClient.Receive(ref endpoint);
+
+                    //get the block nr in the ack frame
+                    byte[] blockNr = Utils.partByteArray(ack, 2, 4);
+
+                    //reset  timedOutCountInARow on success
+                    timedOutCountInARow = 0;
+
+                    if (toShort(ack) == 4 && toShort(blockNr) == i)
+                    {
+
+                        //good one
+                        Console.WriteLine("ack received of blockNr " + i);
+                        receivedAcks++;
+
+                    }
+                    else
+                    {
+
+                        throw new InvalidDataException("invalid data received: received " + toShort(ack) + " and " + toShort(blockNr) + ", but expected: 4 and " + i);
+                    }
+
+                }
+                catch (SocketException e)
+                {
+
+                    if (e.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        //retransmission! //set the filepointer
+                        if (sendingFileStream.CanSeek == false)
+                        {
+                            Console.WriteLine("sorry, the filestream cannot seek! FATAL ERROR!");
+                        }
+                        sendingFileStream.Seek((i - 1) * 2048, SeekOrigin.Begin);
+                        i--;
+                        timedOutCountInARow++;
+                        if (timedOutCountInARow >= 3)
+                        {
+                            break;
+                        }
+
+                    }
+                    else
+                    {
+
+                        Console.WriteLine("error: " + e.Message);
+
+                    }
+                }
+
+            }
+
+            if (receivedAcks == dataGramCount)
+            {
+
+                Console.WriteLine("Package sent successfully");
+                //go back to init state
+                this.clientState.init();
+
+            }
+        
         }
 
 
@@ -305,13 +325,13 @@ namespace TFTP_Client
             sendOpCode(OpCode.WriteReq);
 
             //Send the filename string into the socket
-            sendString(Path.GetFileName(sendingFilename), true); 
+            sendString(Path.GetFileName(sendingFilename), true);
 
             //send octet format information
             sendString("octet", true);
 
             //send size information
-            sendString("tsize", true); 
+            sendString("tsize", true);
 
             //send the actual size
             FileInfo fi = new FileInfo(sendingFilename);
@@ -336,6 +356,55 @@ namespace TFTP_Client
 
             //send resume information value
             sendString("0", true);
+
+            commit();
+        }
+
+        /**
+         * This method sends a read request to the server, with the given Filename
+         * Argument must include the full path to the file
+         */
+        private void sendReadRequest()
+        {
+
+            startPacket();
+
+            sendOpCode(OpCode.ReadReq);
+
+            //Send the filename string into the socket
+            sendString(Path.GetFileName(sendingFilename), true);
+
+            //send octet format information
+            sendString("octet", true);
+
+            //send size information
+            sendString("tsize", true);
+
+            //send the actual size
+            FileInfo fi = new FileInfo(sendingFilename);
+            this.sendingFileSize = fi.Length;
+            String size = ((Int64)fi.Length).ToString();
+            sendString(size, true);
+
+            //send blksize information key
+            sendString("blksize", true);
+
+            //send blksize information value
+            sendString("2048", true);
+
+            //send timeout information 
+            sendString("timeout", true);
+
+            //send timeout information value (as string!)
+            sendString("30", true);
+
+            /* commented as not seen in protocol this time :(
+            //send resume information key
+            sendString("x-resume", true);
+
+            //send resume information value
+            sendString("0", true);
+            */
 
             commit();
         }

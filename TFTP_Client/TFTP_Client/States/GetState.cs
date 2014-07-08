@@ -16,12 +16,12 @@ namespace TFTP_Client.States
 
         public override void get()
         {
-            Console.WriteLine("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
+            
         }
 
         public override void put()
         {
-            throw new InvalidOperationException("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
+            
         }
 
         public override void receive()

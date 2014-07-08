@@ -26,7 +26,7 @@ namespace TFTP_Client.States
 
         public override void receive()
         {
-            Client.getInstance().setClientState(new ReceiveState());
+            throw new InvalidOperationException("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void send()
