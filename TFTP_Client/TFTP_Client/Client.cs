@@ -19,17 +19,21 @@ namespace TFTP_Client
     class Client
     {
         
-
         private String host;
         //private Socket sock = null;
         private Int16 dstPort = 69;
+        long sendingFileSize;
         private static byte[] DELIMITER = new byte[] { 0x00 };
         private Boolean connected = false;
         private FileStream sendingFileStream = null;
         private String sendingFilename = null;
-       
-        private UdpClient udpClient, receivingClient;
-        private int localPort;
+        private UdpClient udpClient;
+        
+        //virtual ports
+        private int localVirtualPort;
+        private int remoteVirtualPort;
+
+        
         private IPEndPoint ipEndPoint;
         byte[] sendingPacket;
         int bytesToBeSend;
@@ -108,7 +112,6 @@ namespace TFTP_Client
                 Console.WriteLine("waiting for ack");
                 //wait for acknowledgement
                 this.clientState.ack();
-                this.initReceive();
                 receiveOptAck();
                 
             }
@@ -128,12 +131,18 @@ namespace TFTP_Client
 
         private void receiveOptAck() {
 
-            IPEndPoint anyEndpoint = new IPEndPoint(IPAddress.Any, 0);
-            byte[] receiveBytes = receivingClient.Receive(ref anyEndpoint);
+            udpClient.Client.Close();
+
+            udpClient = new UdpClient(localVirtualPort);
+            
+            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(host), 0);
+
+            udpClient.Client.ReceiveTimeout = 30000;
+            byte[] receiveBytes = udpClient.Receive(ref endpoint);
+
 
             Console.WriteLine("output " + receiveBytes.Length);
             
-
             //the operation code should be 6
             if (toShort(receiveBytes) == 6)
             {
@@ -141,21 +150,94 @@ namespace TFTP_Client
                 //everythings alright
                 Console.WriteLine("Alright! We can start uploading! But ask user!");
 
+
                 //change the state to sending an then send the data block #1
-                clientState.send();
-                this.initSend();
-                this.startPacket();
-                sendDataBlock(1);
-                this.commit();
-                this.clientState.ack();
+                this.clientState.send();
+
+                udpClient.Connect(endpoint);
+
+                Console.WriteLine("hans ist da: " + sendingFileSize / 2048);
+                int dataGramCount = (int) Math.Ceiling(sendingFileSize / 2048.0d);
+                int receivedAcks = 0;
+                for (int i = 1; i <= dataGramCount; i++)
+                {
+
+                    this.clientState.send();
+                    this.startPacket();
+                    this.sendDataBlock(i);
+                    this.commit();
+                    int timedOutCountInARow = 0;
+                    this.clientState.ack();
+                    udpClient.Client.ReceiveTimeout = 5000;
+                    byte[] ack;
+
+                    try
+                    {
+                        ack = udpClient.Receive(ref endpoint);
+
+                        //get the block nr in the ack frame
+                        byte[] blockNr = Utils.partByteArray(ack, 2, 4);
+
+                        //reset  timedOutCountInARow on success
+                        timedOutCountInARow = 0;
+
+                        if (toShort(ack) == 4 && toShort(blockNr) == i)
+                        {
+
+                            //good one
+                            Console.WriteLine("ack received of blockNr " + i);
+                            receivedAcks++;
+
+                        }
+                        else
+                        {
+
+                            throw new InvalidDataException("invalid data received: received " + toShort(ack) + " and " + toShort(blockNr) + ", but expected: 4 and " + i);
+                        }
+
+                        
+
+                    }
+                    catch (SocketException e) {
+
+                        if (e.SocketErrorCode == SocketError.TimedOut)
+                        {
+                            //retransmission! //set the filepointer
+                            if (sendingFileStream.CanSeek == false)
+                            {
+                                Console.WriteLine("sorry, the filestream cannot seek! FATAL ERROR!");
+                            }
+                            sendingFileStream.Seek((i - 1) * 2048, SeekOrigin.Begin);
+                            i--;
+                            timedOutCountInARow++;
+                            if (timedOutCountInARow >= 3)
+                            {
+                                break;
+                            }
+
+                        }
+                        else {
+
+                            Console.WriteLine("error: " + e.Message);
+
+                        }
+                    }
+
+                }
+
+                if (receivedAcks == dataGramCount) {
+
+                    Console.WriteLine("Package sent successfully");
+                    //go back to init state
+                    this.clientState.init();
+                    
+                }
 
 
             }
-            else {
-
+            else { 
                 //bad case
-                Console.WriteLine("Unknown operation from Server: " + toShort(receiveBytes));
-            
+                Console.WriteLine("Unknown operation from Server: " + toShort(receiveBytes)); 
             }
 
         }
@@ -188,8 +270,15 @@ namespace TFTP_Client
             if (sendingFileStream == null)
                 sendingFileStream = File.OpenRead(sendingFilename);
 
+            Console.WriteLine("Hanssssss "+blockNumber);
+            Console.WriteLine("filesize " + sendingFileSize);
+
+
             byte[] blockData = new byte[2048];
-            sendingFileStream.Read(blockData, 2048 * (blockNumber - 1), 2048);
+            
+            int bytes = sendingFileStream.Read(blockData, 0, 2048);
+
+            Console.WriteLine("bytes read: " + bytes);
 
             //send the operation code for sending a file 
             sendOpCode(OpCode.Data);
@@ -198,9 +287,10 @@ namespace TFTP_Client
             sendOpCode((short)blockNumber);
 
             //send the data
-            appendToSendingPacket(blockData, blockData.Length);
+            appendToSendingPacket(blockData, bytes);
 
         }
+
 
 
         /**
@@ -225,6 +315,7 @@ namespace TFTP_Client
 
             //send the actual size
             FileInfo fi = new FileInfo(sendingFilename);
+            this.sendingFileSize = fi.Length;
             String size = ((Int64)fi.Length).ToString();
             sendString(size, true);
 
@@ -248,8 +339,9 @@ namespace TFTP_Client
 
             commit();
         }
-
-        private void commit() {
+         
+        private void commit()
+        {
             udpClient.Send(sendingPacket, bytesToBeSend);
             bytesToBeSend = 0;
         }
@@ -308,44 +400,29 @@ namespace TFTP_Client
         {
             bytesToBeSend = 0;
         }
-
-        private void initReceive() {
-
-            udpClient.Client.Close();
-            receivingClient = new UdpClient(localPort);
-
-        }
-
-        private void initSend()
-        {
-
-            receivingClient.Client.Close();
-            udpClient = new UdpClient(localPort);
-            udpClient.Connect(ipEndPoint);
-
-        }
-
+ 
         private void connect()
         {
             try
             {
-                
+
                 //set a new endpoint
                 ipEndPoint = new IPEndPoint(IPAddress.Parse(host), dstPort);
 
                 //assign a new udp Client with the given endpoint to the sock instance variable
                 udpClient = new UdpClient();
-                
+
                 udpClient.Connect(ipEndPoint);
 
-                localPort = ((IPEndPoint)udpClient.Client.LocalEndPoint).Port;
+                localVirtualPort = ((IPEndPoint)udpClient.Client.LocalEndPoint).Port;
+                 
 
-                Console.WriteLine("Local port set to " + localPort);
                 
             }
-            catch (SocketException e) {
+            catch (SocketException e)
+            {
                 Console.WriteLine("FATAL, cannot connect to host with address " + host + " " + e.Message);
-                
+
             }
         }
 

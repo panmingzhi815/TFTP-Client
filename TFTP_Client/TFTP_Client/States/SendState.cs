@@ -11,7 +11,7 @@ namespace TFTP_Client.States
     {
         public override void init()
         {
-
+            Client.getInstance().setClientState(new InitState());
         }
 
         public override void get()
@@ -26,7 +26,7 @@ namespace TFTP_Client.States
 
         public override void receive()
         {
-
+            Client.getInstance().setClientState(new ReceiveState());
         }
 
         public override void send()
