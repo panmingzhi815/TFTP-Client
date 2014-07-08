@@ -18,7 +18,8 @@ namespace TFTP_Client
 
     class Client
     {
-        private static IPEndPoint AnyEnpoint = new IPEndPoint(IPAddress.Any, 0);
+        
+
         private String host;
         //private Socket sock = null;
         private Int16 dstPort = 69;
@@ -26,7 +27,9 @@ namespace TFTP_Client
         private Boolean connected = false;
         private FileStream sendingFileStream = null;
         private String sendingFilename = null;
+       
         private UdpClient udpClient, receivingClient;
+        private int localPort;
         private IPEndPoint ipEndPoint;
         byte[] sendingPacket;
         int bytesToBeSend;
@@ -66,6 +69,7 @@ namespace TFTP_Client
                 _instance = new Client();
                 _instance.sendingPacket = new byte[4096];
                 
+                
             }
             
 
@@ -104,6 +108,7 @@ namespace TFTP_Client
                 Console.WriteLine("waiting for ack");
                 //wait for acknowledgement
                 this.clientState.ack();
+                this.initReceive();
                 receiveOptAck();
                 
             }
@@ -112,6 +117,9 @@ namespace TFTP_Client
             }
         }
 
+        /**
+         * The first two fields of this array should be assigned. this will be the int16 (short). the rest will be ignored.
+         */
         private short toShort(byte[] buf)
         {
             //buf should contain 2 values little endian
@@ -119,32 +127,34 @@ namespace TFTP_Client
         }
 
         private void receiveOptAck() {
-             
+
+            IPEndPoint anyEndpoint = new IPEndPoint(IPAddress.Any, 0);
+            byte[] receiveBytes = receivingClient.Receive(ref anyEndpoint);
+
+            Console.WriteLine("output " + receiveBytes.Length);
             
-            byte[] receiveBytes = receivingClient.Receive(ref AnyEnpoint);
 
-            Console.WriteLine("Alri");
             //the operation code should be 6
-            byte[] buff = Utils.partByteArray(receiveBytes, 0, 2);
-
-            if (toShort(buff) == 6)
+            if (toShort(receiveBytes) == 6)
             {
-                //ok
-                Console.WriteLine(Encoding.ASCII.GetString(receiveBytes));
-
+                //ok 
                 //everythings alright
                 Console.WriteLine("Alright! We can start uploading! But ask user!");
 
-
                 //change the state to sending an then send the data block #1
                 clientState.send();
+                this.initSend();
+                this.startPacket();
                 sendDataBlock(1);
+                this.commit();
+                this.clientState.ack();
+
 
             }
             else {
 
                 //bad case
-                Console.WriteLine("Unknown operation from Server: " + toShort(buff));
+                Console.WriteLine("Unknown operation from Server: " + toShort(receiveBytes));
             
             }
 
@@ -170,7 +180,8 @@ namespace TFTP_Client
          * previous DATA packet. The WRQ and DATA packets are acknowledged by
          * ACK or ERROR packets, while RRQ
          */
-        private void sendDataBlock(int blockNumber) {
+        private void sendDataBlock(int blockNumber)
+        {
 
             //as we have a standard of about 2048 bytes we send them immediately, we use the same file pointer again
             //lets first read the data into an array of bytes
@@ -185,11 +196,10 @@ namespace TFTP_Client
 
             //since the block number is contained in the same format like the operation code (2 bytes) we can use the same method
             sendOpCode((short)blockNumber);
-            
-            //send the data
-            udpClient.Send(blockData, blockData.Length);
 
-            clientState.ack();
+            //send the data
+            appendToSendingPacket(blockData, blockData.Length);
+
         }
 
 
@@ -299,6 +309,22 @@ namespace TFTP_Client
             bytesToBeSend = 0;
         }
 
+        private void initReceive() {
+
+            udpClient.Client.Close();
+            receivingClient = new UdpClient(localPort);
+
+        }
+
+        private void initSend()
+        {
+
+            receivingClient.Client.Close();
+            udpClient = new UdpClient(localPort);
+            udpClient.Connect(ipEndPoint);
+
+        }
+
         private void connect()
         {
             try
@@ -311,8 +337,10 @@ namespace TFTP_Client
                 udpClient = new UdpClient();
                 
                 udpClient.Connect(ipEndPoint);
-                 
-                receivingClient = new UdpClient(((IPEndPoint)udpClient.Client.LocalEndPoint).Port);
+
+                localPort = ((IPEndPoint)udpClient.Client.LocalEndPoint).Port;
+
+                Console.WriteLine("Local port set to " + localPort);
                 
             }
             catch (SocketException e) {
