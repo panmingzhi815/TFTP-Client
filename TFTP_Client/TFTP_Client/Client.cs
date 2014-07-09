@@ -21,7 +21,7 @@ namespace TFTP_Client
         private static Int16 DATA_PACKET_SIZE = 512;
         //private Socket sock = null;
         private Int16 dstPort = 69;
-        long sendingFileSize;
+        
         private String retrPath;
         private static byte[] DELIMITER = new byte[] { 0x00 }; 
         private FileStream sendingFileStream = null;
@@ -71,7 +71,7 @@ namespace TFTP_Client
          *   5     Error (ERROR)
          */
         static class OpCode {
-            public static short ReadReq = 0x01,
+            public static readonly short ReadReq = 0x01,
              WriteReq = 0x02,
              Data = 0x03,
              Ack = 0x04,
@@ -89,7 +89,7 @@ namespace TFTP_Client
 
                 //for the public static access getInstance we set the variable first
                 _instance = new Client();
-                _instance.sendingPacket = new byte[4096];
+                _instance.sendingPacket = new byte[2052];
                  
             }
             
@@ -171,6 +171,7 @@ namespace TFTP_Client
             endpoint = new IPEndPoint(IPAddress.Parse(host), 0);
 
             udpClient.Client.ReceiveTimeout = 30000;
+
             byte[] receiveBytes = udpClient.Receive(ref endpoint);
 
             //Console.WriteLine("output " + receiveBytes.Length);
@@ -313,11 +314,9 @@ namespace TFTP_Client
         private void send()
         {
             
+            udpClient.Connect(endpoint);
 
-            if (!udpClient.Client.Connected)
-                udpClient.Connect(endpoint);
-
-            int dataGramCount = 1 + ((int)sendingFileSize) / DATA_PACKET_SIZE;
+            int dataGramCount = 1 + ((int)(new FileInfo(sendingFilename).Length)) / DATA_PACKET_SIZE;
             int receivedAcks = 0;
 
             for (int i = 1; i <= dataGramCount; i++)

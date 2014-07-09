@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -59,10 +60,26 @@ namespace TFTP_Client
 
         private void button2_Click(object sender, EventArgs e)
         {
+
             upload();
         }
 
         private void upload() {
+
+            //IF FILE NOT EXISTS LEAVE METHOD WITH AN ERROR
+            if (!File.Exists(textBox1.Text)){
+                MessageBox.Show("The file does not exist!");
+                return;
+            }
+
+            //IF FILESIZE == 0 LEAVE METHOD WITH AN ERROR
+            if ((new FileInfo(textBox1.Text).Length) == 0)
+            {
+                MessageBox.Show("The file is too small!");
+                return;
+            }
+            
+            //IF NOT LEFT, EVERYTHING IS OK
             Client.getInstance().put(textBox1.Text, textBoxIP.Text, textBoxPort.Text); 
         }
 
