@@ -1,9 +1,0 @@
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\bin\Debug\TFTP_Client.exe.config
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\obj\Debug\TFTP_Client.csprojResolveAssemblyReference.cache
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\obj\Debug\TFTP_Client.Form1.resources
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\obj\Debug\TFTP_Client.Properties.Resources.resources
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\obj\Debug\TFTP_Client.csproj.GenerateResource.Cache
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\bin\Debug\TFTP_Client.exe
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\bin\Debug\TFTP_Client.pdb
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\obj\Debug\TFTP_Client.exe
-D:\DropboxM\Dropbox\Internet Protocols SS14\VisualStudioProject\TFTP_Client\TFTP_Client\obj\Debug\TFTP_Client.pdb
