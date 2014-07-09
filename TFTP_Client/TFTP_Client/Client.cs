@@ -185,8 +185,6 @@ namespace TFTP_Client
             return (int)(buf[0] * 256 + buf[1]);
         }
 
-
-
         private void receiveOptionAcknowledgment() {
 
             //prepare client
@@ -199,6 +197,7 @@ namespace TFTP_Client
 
             try {
                  receiveBytes = udpClient.Receive(ref endpoint);
+                 this.context.protocolMSGInv("Option Acknowledge: " + bytesToString(receiveBytes));
             }
             catch (SocketException e)
             {
@@ -335,7 +334,7 @@ namespace TFTP_Client
                         if (data.Length < DATA_PACKET_SIZE + 4)
                         {
                             Console.WriteLine("Finished transfer");
-                            this.context.protocolMSGInv("File " + filename + " received!");
+                            this.context.protocolMSGInv("File \"" + filename + "\" received!");
                             receivingFileStream.Close();
                             receivingFileStream = null;
                             resetClient();
@@ -486,7 +485,7 @@ namespace TFTP_Client
             else if (receivedAck == dataGramCount)
             {
                 Console.WriteLine("Packages sent successfully");
-                this.context.protocolMSGInv("File " + filename + " sent");
+                this.context.protocolMSGInv("File \"" + Path.GetFileName(filename) + "\" has been sent!");
                 //go back to init state
                 this.clientState = new InitState();
                 sendingFileStream.Close();
@@ -756,6 +755,30 @@ namespace TFTP_Client
             {
                 Console.WriteLine("FATAL, cannot connect to host with address " + host + " " + e.Message);
             }
+        }
+
+        private String pad(int i) {
+            if (i <= 9)
+                return "0" + i;
+            return ""+i;
+        }
+
+        private String bytesToString(byte[] b) {
+            Console.WriteLine("" + b.Length);
+            System.Text.StringBuilder s = new StringBuilder();
+
+            for (int i=0;i<b.Length;i++){
+                if (b[i] > 31 && b[i] < 127)
+                {
+                    s.Append((char)b[i]);
+                }
+                else {
+                    s.Append(pad(b[i])).Append(" ");
+                }
+            }
+
+            return s.ToString();
+
         }
     }
 }

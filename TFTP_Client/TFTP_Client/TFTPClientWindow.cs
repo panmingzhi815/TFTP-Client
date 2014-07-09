@@ -75,8 +75,8 @@ namespace TFTP_Client
             //IF FILESIZE == 0 LEAVE METHOD WITH AN ERROR
             if ((new FileInfo(textBox1.Text).Length) == 0)
             {
-                MessageBox.Show("The file is too small!");
-                return;
+                if (MessageBox.Show("The file is empty! Do you still want to continue?", "Continue", MessageBoxButtons.YesNo) == DialogResult.No)
+                    return;
             }
             
             //IF NOT LEFT, EVERYTHING IS OK
