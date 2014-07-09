@@ -11,7 +11,7 @@ namespace TFTP_Client.States
     {
         public override void init()
         {
-            Client.getInstance().setClientState(new InitState());
+            throw new InvalidOperationException("Applying State " + MethodBase.GetCurrentMethod().Name + " from this State " + this.GetType().Name + " not allowed!");
         }
 
         public override void get()
