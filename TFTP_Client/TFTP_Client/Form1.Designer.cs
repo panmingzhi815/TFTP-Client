@@ -179,6 +179,7 @@
             this.button3.TabIndex = 4;
             this.button3.Text = "Receive";
             this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
             // textBox2
             // 
@@ -186,6 +187,8 @@
             this.textBox2.Name = "textBox2";
             this.textBox2.Size = new System.Drawing.Size(361, 20);
             this.textBox2.TabIndex = 1;
+            this.textBox2.Text = "Blaue Berge.jpg";
+            this.textBox2.TextChanged += new System.EventHandler(this.textBox2_TextChanged);
             // 
             // label4
             // 

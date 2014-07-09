@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Collections.Generic;
+using System.IO; 
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,26 +13,23 @@ using TFTP_Client.States;
 
 namespace TFTP_Client
 {
-
-
+     
     class Client
     {
         
         private String host;
+        private static Int16 DATA_PACKET_SIZE = 512;
         //private Socket sock = null;
         private Int16 dstPort = 69;
         long sendingFileSize;
-        private static byte[] DELIMITER = new byte[] { 0x00 };
-        private Boolean connected = false;
+        private static byte[] DELIMITER = new byte[] { 0x00 }; 
         private FileStream sendingFileStream = null;
         private String sendingFilename = null;
         private UdpClient udpClient;
-        
+        private IPEndPoint endpoint;
         //virtual ports
-        private int localVirtualPort;
-        private int remoteVirtualPort;
-
-        
+        private int localVirtualPort; 
+         
         private IPEndPoint ipEndPoint;
         byte[] sendingPacket;
         int bytesToBeSend;
@@ -71,8 +67,7 @@ namespace TFTP_Client
                 //for the public static access getInstance we set the variable first
                 _instance = new Client();
                 _instance.sendingPacket = new byte[4096];
-                
-                
+                 
             }
             
 
@@ -86,33 +81,53 @@ namespace TFTP_Client
             clientState = new InitState();
  
         }
-         
- 
-        private bool isReady() {
-            return this.clientState.GetType() == typeof(InitState);
-        }
+          
 
-        public void upload(String filename, String host, String port)
+        public void put(String filename, String host, String port)
         {
             try
             {
                 //always ensure that we are in the init state. 
                 //the current state would throw an exception if it is not the initstate (put would not be applicable)
-                this.clientState.put(); 
+                this.clientState.put();
                 this.sendingFilename = filename;
                 this.host = host;
                 this.dstPort = Int16.Parse(port);
 
                 //change to send state and send a write request
-                connect();
+                connectInitial();
                 sendWriteRequest();
 
                 Console.WriteLine("waiting for ack");
                 //wait for acknowledgement
-                receiveOptAck();
-                
+                receiveOptionAcknowledgment();
+
             }
-            catch (InvalidOperationException e) {
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine("Error: " + e);
+            }
+        }
+        public void get(String filename, String host, String port)
+        {
+            try
+            {
+                //always ensure that we are in the init state. 
+                //the current state would throw an exception if it is not the initstate (put would not be applicable)
+                this.clientState.get();
+                this.sendingFilename = filename;
+                this.host = host;
+                this.dstPort = Int16.Parse(port);
+
+                //change to send state and send a write request
+                connectInitial();
+                sendReadRequest();
+
+                Console.WriteLine("waiting for ack");
+                //wait for acknowledgement
+                receiveOptionAcknowledgment();
+
+            } catch (InvalidOperationException e) {
                 Console.WriteLine("Error: " + e);
             }
         }
@@ -123,16 +138,15 @@ namespace TFTP_Client
         private short toShort(byte[] buf)
         {
             //buf should contain 2 values little endian
-            return (short)(buf[0] * 255 + buf[1]);
+            return (short)(buf[0] * 256 + buf[1]);
         }
 
-        private void receiveOptAck() {
+        private void receiveOptionAcknowledgment() {
 
             udpClient.Client.Close();
-
             udpClient = new UdpClient(localVirtualPort);
             
-            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(host), 0);
+            endpoint = new IPEndPoint(IPAddress.Parse(host), 0);
 
             udpClient.Client.ReceiveTimeout = 30000;
             byte[] receiveBytes = udpClient.Receive(ref endpoint);
@@ -150,22 +164,21 @@ namespace TFTP_Client
 
                 if (state == typeof(PutState))
                 {
-                    beginUploadingDataPackets(endpoint);
+                    Console.WriteLine("beginUploadingDataPackets");
+                    send();
                 }
                 else if (state == typeof(GetState))
                 {
-                    udpClient.Connect(endpoint);
-                    
-                    //send acknowledge
-                    startPacket(); 
+                    //send acknowledge <BLOCK 0>
+                    startPacket();
                     sendOpCode(OpCode.Ack);
                     sendOpCode(0x00); //send the block no. 0
-
                     commit();
+
+                    //go into receive ;)
+                    receive();
                 }
-                
-
-
+                 
             }
             else { 
                 //bad case
@@ -174,16 +187,70 @@ namespace TFTP_Client
 
         }
 
+        
 
-
-        private void beginUploadingDataPackets(IPEndPoint endpoint)
+        void receive()
         {
              
-            udpClient.Connect(endpoint);
+            //set state receive
+            clientState.receive();
 
-            Console.WriteLine("hans ist da: " + sendingFileSize / 2048);
-            int dataGramCount = (int)Math.Ceiling(sendingFileSize / 2048.0d);
+            int blockCount = 0;
+            byte[] data;
+
+            Console.WriteLine("begin receiving");
+            udpClient.Connect(endpoint);  
+             
+            //receive data
+            while (true)
+            {
+                 
+                data = udpClient.Receive(ref endpoint);
+                blockCount++;
+                byte[] blockNumber = Utils.partByteArray(data, 2, 4);
+
+                Console.WriteLine("output " + data.Length);
+                if (toShort(blockNumber) == blockCount && toShort(data) == OpCode.Data)
+                {
+
+                    //everything alright
+                    startPacket();
+                    sendOpCode(OpCode.Ack);
+                    sendOpCode((short)blockCount); //send the block no. 0
+                    commit();
+
+                }
+                else
+                {
+                    Console.WriteLine("ERROR RECEIVING ACKNOWLEDGMENT");
+                }
+
+                if (data.Length < DATA_PACKET_SIZE + 4)
+                {
+                    Console.WriteLine("Finished transfer");
+                    this.clientState = new InitState();
+                    break;
+                }
+
+            }
+        
+        }
+
+        private void sendAck() { 
+        
+        
+        }
+
+        private void send()
+        {
+            
+
+            if (!udpClient.Client.Connected)
+                udpClient.Connect(endpoint);
+
+            int dataGramCount = (int)Math.Ceiling(sendingFileSize / (double)DATA_PACKET_SIZE);
             int receivedAcks = 0;
+
             for (int i = 1; i <= dataGramCount; i++)
             {
 
@@ -211,13 +278,11 @@ namespace TFTP_Client
                     {
 
                         //good one
-                        Console.WriteLine("ack received of blockNr " + i);
                         receivedAcks++;
 
                     }
                     else
                     {
-
                         throw new InvalidDataException("invalid data received: received " + toShort(ack) + " and " + toShort(blockNr) + ", but expected: 4 and " + i);
                     }
 
@@ -232,7 +297,7 @@ namespace TFTP_Client
                         {
                             Console.WriteLine("sorry, the filestream cannot seek! FATAL ERROR!");
                         }
-                        sendingFileStream.Seek((i - 1) * 2048, SeekOrigin.Begin);
+                        sendingFileStream.Seek((i - 1) * DATA_PACKET_SIZE, SeekOrigin.Begin);
                         i--;
                         timedOutCountInARow++;
                         if (timedOutCountInARow >= 3)
@@ -256,7 +321,7 @@ namespace TFTP_Client
 
                 Console.WriteLine("Package sent successfully");
                 //go back to init state
-                this.clientState.init();
+                this.clientState = new InitState();
 
             }
         
@@ -285,21 +350,15 @@ namespace TFTP_Client
         private void sendDataBlock(int blockNumber)
         {
 
-            //as we have a standard of about 2048 bytes we send them immediately, we use the same file pointer again
+            //as we have a standard of about DATA_PACKET_SIZE bytes we send them immediately, we use the same file pointer again
             //lets first read the data into an array of bytes
             if (sendingFileStream == null)
                 sendingFileStream = File.OpenRead(sendingFilename);
-
-            Console.WriteLine("Hanssssss "+blockNumber);
-            Console.WriteLine("filesize " + sendingFileSize);
-
-
-            byte[] blockData = new byte[2048];
+              
+            byte[] blockData = new byte[DATA_PACKET_SIZE];
             
-            int bytes = sendingFileStream.Read(blockData, 0, 2048);
-
-            Console.WriteLine("bytes read: " + bytes);
-
+            int bytes = sendingFileStream.Read(blockData, 0, DATA_PACKET_SIZE);
+              
             //send the operation code for sending a file 
             sendOpCode(OpCode.Data);
 
@@ -343,7 +402,7 @@ namespace TFTP_Client
             sendString("blksize", true);
 
             //send blksize information value
-            sendString("2048", true);
+            sendIntAsString(DATA_PACKET_SIZE, true);
 
             //send timeout information 
             sendString("timeout", true);
@@ -358,6 +417,11 @@ namespace TFTP_Client
             sendString("0", true);
 
             commit();
+        }
+
+        private void sendIntAsString(Int16 a, bool withDel)
+        {
+            sendString(a.ToString(), withDel);
         }
 
         /**
@@ -377,20 +441,17 @@ namespace TFTP_Client
             //send octet format information
             sendString("octet", true);
 
-            //send size information
+            //send size information  //key
             sendString("tsize", true);
 
-            //send the actual size
-            FileInfo fi = new FileInfo(sendingFilename);
-            this.sendingFileSize = fi.Length;
-            String size = ((Int64)fi.Length).ToString();
-            sendString(size, true);
+            //send the actual size //value
+            sendString("0", true);
 
             //send blksize information key
             sendString("blksize", true);
 
             //send blksize information value
-            sendString("2048", true);
+            sendIntAsString(DATA_PACKET_SIZE, true);
 
             //send timeout information 
             sendString("timeout", true);
@@ -470,7 +531,7 @@ namespace TFTP_Client
             bytesToBeSend = 0;
         }
  
-        private void connect()
+        private void connectInitial()
         {
             try
             {
@@ -485,17 +546,11 @@ namespace TFTP_Client
 
                 localVirtualPort = ((IPEndPoint)udpClient.Client.LocalEndPoint).Port;
                  
-
-                
             }
             catch (SocketException e)
             {
                 Console.WriteLine("FATAL, cannot connect to host with address " + host + " " + e.Message);
-
             }
         }
-
- 
-                
     }
 }

@@ -65,10 +65,20 @@ namespace TFTP_Client
         }
 
         private void upload() {
-            Client.getInstance().upload(textBox1.Text, textBoxIP.Text, textBoxPort.Text); 
+            Client.getInstance().put(textBox1.Text, textBoxIP.Text, textBoxPort.Text); 
         }
 
         private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Client.getInstance().get(textBox2.Text, textBoxIP.Text, textBoxPort.Text); 
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
         {
 
         }
