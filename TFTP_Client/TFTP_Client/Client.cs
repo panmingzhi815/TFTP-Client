@@ -86,7 +86,6 @@ namespace TFTP_Client
                  
             }
             
-
             return _instance;
         }
 
@@ -235,8 +234,7 @@ namespace TFTP_Client
             }
             receivingFileStream.Write(buf, 0, buf.Length);
         }
-        
-
+      
         void receive()
         {
             int blockCount = 0;
@@ -257,11 +255,7 @@ namespace TFTP_Client
 //                Console.WriteLine("output " + data.Length);
                 if (toShort(blockNumber) == blockCount && toShort(data) == OpCode.Data)
                 {
-                    
-                    if (blockCount == 1) { 
-                        
-                    }
-
+                     
                     //everything alright, we can save the data
                     writeToFile(Utils.partByteArray(data, 4,data.Length));
 
@@ -294,11 +288,7 @@ namespace TFTP_Client
             }
         
         }
-
-        private void sendAck() { 
-        
-        
-        }
+         
 
         private void send()
         {
