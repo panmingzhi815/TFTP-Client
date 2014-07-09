@@ -11,9 +11,9 @@ using System.Reflection;
 
 namespace TFTP_Client
 {
-    public partial class Form1 : Form
+    public partial class TFTPClientWindow : Form
     {
-        public Form1()
+        public TFTPClientWindow()
         {
             InitializeComponent(); 
             

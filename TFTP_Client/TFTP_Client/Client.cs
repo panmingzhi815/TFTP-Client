@@ -37,8 +37,7 @@ namespace TFTP_Client
         int bytesToBeSend;
 
         public void setRetrPath(String p) {
-
-            this.retrPath = sanitizePath(p);
+            this.retrPath = sanitizePath(p.Trim());
         }
 
         private String sanitizePath(String s) {
@@ -250,7 +249,7 @@ namespace TFTP_Client
                 }
                 else
                 {
-                    Console.WriteLine("ERROR RECEIVING ACKNOWLEDGMENT");
+                    Console.WriteLine("ERROR RECEIVING DATA");
                 }
 
                 if (data.Length < DATA_PACKET_SIZE + 4)

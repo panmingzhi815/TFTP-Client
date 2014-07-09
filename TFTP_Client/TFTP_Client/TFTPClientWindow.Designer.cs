@@ -1,6 +1,6 @@
 ﻿namespace TFTP_Client
 {
-    partial class Form1
+    partial class TFTPClientWindow
     {
         /// <summary>
         /// Required designer variable.
