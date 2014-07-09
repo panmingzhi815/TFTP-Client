@@ -174,17 +174,33 @@ namespace TFTP_Client
             {
                 //ok 
                 //everythings alright
-                Console.WriteLine("Will download now");
 
                 System.Type state = this.clientState.GetType();
 
                 if (state == typeof(PutState))
                 {
-                    Console.WriteLine("beginUploadingDataPackets");
-                    send();
+                    if (MessageBox.Show("The server acknowledged the Write Request. Would you like to continue uploading?", "Continue", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                    {
+                        Console.WriteLine("beginUploadingDataPackets");
+                        send();
+                    }
+                    else {
+
+                        resetClient();
+                        
+                    }
+                    
                 }
                 else if (state == typeof(GetState))
                 {
+
+                    //LIKE in the Lecture
+                    if (MessageBox.Show("The server agreed sending you the file. Would you like to continue?", "Continue", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                    {
+                        resetClient();
+                        return;
+                    } 
+
                     udpClient.Connect(endpoint);
                     //send acknowledge <BLOCK 0>
                     startPacket();
@@ -199,12 +215,19 @@ namespace TFTP_Client
             }
             else { 
                 //bad case
-                Console.WriteLine("Unknown operation from Server: " + toShort(receiveBytes)); 
+                Console.WriteLine("Unknown operation from Server: " + toShort(receiveBytes));
+                resetClient();
             }
 
         }
 
-
+        void resetClient()
+        {  //reset client
+            udpClient.Close();
+            udpClient = null;
+            this.clientState = new InitState();
+        
+        }
         void writeToFile(byte[] buf) {
             if (receivingFileStream == null) {
                 receivingFileStream = File.OpenWrite(this.retrPath + this.sendingFilename);
@@ -234,6 +257,10 @@ namespace TFTP_Client
 //                Console.WriteLine("output " + data.Length);
                 if (toShort(blockNumber) == blockCount && toShort(data) == OpCode.Data)
                 {
+                    
+                    if (blockCount == 1) { 
+                        
+                    }
 
                     //everything alright, we can save the data
                     writeToFile(Utils.partByteArray(data, 4,data.Length));
@@ -246,20 +273,21 @@ namespace TFTP_Client
                     sendOpCode((short)blockCount); //send the block no. 0
                     commit();
 
+
+                    //check if download finished
+                    if (data.Length < DATA_PACKET_SIZE + 4)
+                    {
+                        Console.WriteLine("Finished transfer");
+                        receivingFileStream.Close();
+                        receivingFileStream = null;
+                        resetClient();
+                        break;
+                    }
                 }
                 else
                 {
+                    resetClient();
                     Console.WriteLine("ERROR RECEIVING DATA");
-                }
-
-                if (data.Length < DATA_PACKET_SIZE + 4)
-                {
-                    Console.WriteLine("Finished transfer");
-                    receivingFileStream.Close();
-                    receivingFileStream = null;
-                    
-                    this.clientState = new InitState();
-                    
                     break;
                 }
 
