@@ -15,8 +15,8 @@ namespace TFTP_Client
     {
         public TFTPClientWindow()
         {
-            InitializeComponent(); 
-            
+            InitializeComponent();
+            Client.getInstance().setContext(this);
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -60,8 +60,6 @@ namespace TFTP_Client
         private void button2_Click(object sender, EventArgs e)
         {
             upload();
-            
-            
         }
 
         private void upload() {
@@ -75,6 +73,10 @@ namespace TFTP_Client
 
         private void button3_Click(object sender, EventArgs e)
         {
+            receive();
+        }
+
+        private void receive() {
             Client.getInstance().setRetrPath(textBox3.Text);
             Client.getInstance().get(textBox2.Text, textBoxIP.Text, textBoxPort.Text); 
         }
@@ -89,6 +91,19 @@ namespace TFTP_Client
 
         }
 
+        public void protocolMSGInv(String msg)
+        {
+            Invoke(
+                (MethodInvoker)delegate
+                {
+                    protocolMessage(msg);
+                });
+        }
+
+        private void protocolMessage(String msg)
+        {
+            listBox1.Items.Add(msg);
+        }
         
     }
 }

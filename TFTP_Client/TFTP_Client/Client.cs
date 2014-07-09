@@ -29,12 +29,15 @@ namespace TFTP_Client
         private String sendingFilename = null;
         private UdpClient udpClient;
         private IPEndPoint endpoint;
+        private String currentLog;
         //virtual ports
         private int localVirtualPort; 
          
         private IPEndPoint ipEndPoint;
         byte[] sendingPacket;
         int bytesToBeSend;
+
+        private TFTPClientWindow context;
 
         public void setRetrPath(String p) {
             this.retrPath = sanitizePath(p.Trim());
@@ -48,6 +51,10 @@ namespace TFTP_Client
             }
             return s;
 
+        }
+
+        public void setContext(TFTPClientWindow context) {
+            this.context = context;
         }
 
         public void setSendingFilename(String f) {
@@ -181,7 +188,10 @@ namespace TFTP_Client
                     if (MessageBox.Show("The server acknowledged the Write Request. Would you like to continue uploading?", "Continue", MessageBoxButtons.YesNo) == DialogResult.Yes)
                     {
                         Console.WriteLine("beginUploadingDataPackets");
-                        send();
+                        
+                        System.Threading.Thread newThread = new System.Threading.Thread(this.send);
+                        newThread.Start();
+                        
                     }
                     else {
 
@@ -208,13 +218,25 @@ namespace TFTP_Client
                     commit();
 
                     //go into receive ;)
-                    receive();
+                    System.Threading.Thread newThread = new System.Threading.Thread(this.receive);
+                    newThread.Start();
+                    
                 }
                  
             }
-            else { 
-                //bad case
-                Console.WriteLine("Unknown operation from Server: " + toShort(receiveBytes));
+            else {
+
+
+                if (toShort(receiveBytes) == 5)
+                {
+                    //bad case
+                    Console.WriteLine("ERROR Code 5 from Server: " + toShort(receiveBytes));
+                }
+                else {
+                    //bad case
+                    Console.WriteLine("Unknown operation from Server: " + toShort(receiveBytes));
+                
+                }
                 resetClient();
             }
 
@@ -230,7 +252,6 @@ namespace TFTP_Client
         void writeToFile(byte[] buf) {
             if (receivingFileStream == null) {
                 receivingFileStream = File.OpenWrite(this.retrPath + this.sendingFilename);
-                
             }
             receivingFileStream.Write(buf, 0, buf.Length);
         }
@@ -266,7 +287,6 @@ namespace TFTP_Client
                     sendOpCode(OpCode.Ack);
                     sendOpCode((short)blockCount); //send the block no. 0
                     commit();
-
 
                     //check if download finished
                     if (data.Length < DATA_PACKET_SIZE + 4)
@@ -435,44 +455,46 @@ namespace TFTP_Client
             sendOpCode(OpCode.WriteReq);
 
             //Send the filename string into the socket
-            sendString(Path.GetFileName(sendingFilename), true);
+            sendString(Path.GetFileName(sendingFilename), true, true);
 
             //send octet format information
-            sendString("octet", true);
+            sendString("octet", true, true);
 
             //send size information
-            sendString("tsize", true);
+            sendString("tsize", true, true);
 
             //send the actual size
-            FileInfo fi = new FileInfo(sendingFilename);
-            this.sendingFileSize = fi.Length;
-            String size = ((Int64)fi.Length).ToString();
-            sendString(size, true);
+            sendIntAsString(new FileInfo(sendingFilename).Length, true, true);
 
             //send blksize information key
-            sendString("blksize", true);
+            sendString("blksize", true, true);
 
             //send blksize information value
-            sendIntAsString(DATA_PACKET_SIZE, true);
+            sendIntAsString(DATA_PACKET_SIZE, true, true);
 
             //send timeout information 
-            sendString("timeout", true);
+            sendString("timeout", true, true);
 
             //send timeout information value (as string!)
-            sendString("30", true);
+            sendString("30", true, true);
 
             //send resume information key
-            sendString("x-resume", true);
+            sendString("x-resume", true, true);
 
             //send resume information value
-            sendString("0", true);
+            sendString("0", true, true);
 
-            commit();
+            commit(true);
         }
 
-        private void sendIntAsString(Int16 a, bool withDel)
+        private void sendIntAsString(Int64 a, bool withDel, bool forLogging)
         {
-            sendString(a.ToString(), withDel);
+            sendString(a.ToString(), withDel, forLogging);
+        }
+
+        private void sendIntAsString(Int64 a, bool withDel)
+        {
+            sendIntAsString(a, withDel, false);
         }
 
         /**
@@ -487,28 +509,28 @@ namespace TFTP_Client
             sendOpCode(OpCode.ReadReq);
 
             //Send the filename string into the socket
-            sendString(Path.GetFileName(sendingFilename), true);
+            sendString(Path.GetFileName(sendingFilename), true, true);
 
             //send octet format information
-            sendString("octet", true);
+            sendString("octet", true, true);
 
             //send size information  //key
-            sendString("tsize", true);
+            sendString("tsize", true, true);
 
             //send the actual size //value
-            sendString("0", true);
+            sendString("0", true, true);
 
             //send blksize information key
-            sendString("blksize", true);
+            sendString("blksize", true, true);
 
             //send blksize information value
-            sendIntAsString(DATA_PACKET_SIZE, true);
+            sendIntAsString(DATA_PACKET_SIZE, true, true);
 
             //send timeout information 
-            sendString("timeout", true);
+            sendString("timeout", true, true);
 
             //send timeout information value (as string!)
-            sendString("30", true);
+            sendString("30", true, true);
 
             /* commented as not seen in protocol this time :(
             //send resume information key
@@ -518,16 +540,26 @@ namespace TFTP_Client
             sendString("0", true);
             */
 
-            commit();
+            commit(true);
         }
-         
-        private void commit()
+
+        private void commit(bool log)
         {
+            if (log) {
+
+                context.protocolMSGInv(currentLog);
+
+            }
+            currentLog = "";
             udpClient.Send(sendingPacket, bytesToBeSend);
             bytesToBeSend = 0;
         }
+        private void commit()
+        {
+            commit(false);
+        }
 
-        private void sendString(String str, bool withDelimiter) {
+        private void sendString(String str, bool withDelimiter, bool forLogging) {
 
             byte[] msg = Encoding.ASCII.GetBytes(str);
             
@@ -538,12 +570,19 @@ namespace TFTP_Client
                 if (withDelimiter)
                     //send the delimiter which is the byte 0x00
                     appendToSendingPacket(DELIMITER, 1);
-                    
+
+                //since we only use this for small
+                if (forLogging)
+                {
+                    currentLog = currentLog + str + (withDelimiter ? "." : "");
+                }
             }
             catch (SocketException e) {
                 Console.Write("Exception in writing socket string: " + e.Message);
             }
+
             
+
         }
 
         private byte[] shortToBytes(short number){
