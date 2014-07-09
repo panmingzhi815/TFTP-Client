@@ -22,8 +22,10 @@ namespace TFTP_Client
         //private Socket sock = null;
         private Int16 dstPort = 69;
         long sendingFileSize;
+        private String retrPath;
         private static byte[] DELIMITER = new byte[] { 0x00 }; 
         private FileStream sendingFileStream = null;
+        private FileStream receivingFileStream = null;
         private String sendingFilename = null;
         private UdpClient udpClient;
         private IPEndPoint endpoint;
@@ -33,6 +35,21 @@ namespace TFTP_Client
         private IPEndPoint ipEndPoint;
         byte[] sendingPacket;
         int bytesToBeSend;
+
+        public void setRetrPath(String p) {
+
+            this.retrPath = sanitizePath(p);
+        }
+
+        private String sanitizePath(String s) {
+
+            if (!s.EndsWith("\\"))
+            { 
+                s += "\\"; 
+            }
+            return s;
+
+        }
 
         public void setSendingFilename(String f) {
             this.sendingFilename = f;
@@ -151,14 +168,14 @@ namespace TFTP_Client
             udpClient.Client.ReceiveTimeout = 30000;
             byte[] receiveBytes = udpClient.Receive(ref endpoint);
 
-            Console.WriteLine("output " + receiveBytes.Length);
+            //Console.WriteLine("output " + receiveBytes.Length);
             
             //the operation code should be 6
             if (toShort(receiveBytes) == 6)
             {
                 //ok 
                 //everythings alright
-                Console.WriteLine("Alright! We can start uploading! But ask user!");
+                Console.WriteLine("Will download now");
 
                 System.Type state = this.clientState.GetType();
 
@@ -169,6 +186,7 @@ namespace TFTP_Client
                 }
                 else if (state == typeof(GetState))
                 {
+                    udpClient.Connect(endpoint);
                     //send acknowledge <BLOCK 0>
                     startPacket();
                     sendOpCode(OpCode.Ack);
@@ -187,33 +205,43 @@ namespace TFTP_Client
 
         }
 
+
+        void writeToFile(byte[] buf) {
+            if (receivingFileStream == null) {
+                receivingFileStream = File.OpenWrite(this.retrPath + this.sendingFilename);
+                
+            }
+            receivingFileStream.Write(buf, 0, buf.Length);
+        }
         
 
         void receive()
         {
-             
-            //set state receive
-            clientState.receive();
-
             int blockCount = 0;
             byte[] data;
-
-            Console.WriteLine("begin receiving");
-            udpClient.Connect(endpoint);  
-             
+ 
             //receive data
             while (true)
             {
+
+                //set state receive
+                clientState.receive();
+
                  
                 data = udpClient.Receive(ref endpoint);
                 blockCount++;
                 byte[] blockNumber = Utils.partByteArray(data, 2, 4);
 
-                Console.WriteLine("output " + data.Length);
+//                Console.WriteLine("output " + data.Length);
                 if (toShort(blockNumber) == blockCount && toShort(data) == OpCode.Data)
                 {
 
-                    //everything alright
+                    //everything alright, we can save the data
+                    writeToFile(Utils.partByteArray(data, 4,data.Length));
+
+                    //sent ack
+                    clientState.ack();
+
                     startPacket();
                     sendOpCode(OpCode.Ack);
                     sendOpCode((short)blockCount); //send the block no. 0
@@ -228,7 +256,11 @@ namespace TFTP_Client
                 if (data.Length < DATA_PACKET_SIZE + 4)
                 {
                     Console.WriteLine("Finished transfer");
+                    receivingFileStream.Close();
+                    receivingFileStream = null;
+                    
                     this.clientState = new InitState();
+                    
                     break;
                 }
 
@@ -248,7 +280,7 @@ namespace TFTP_Client
             if (!udpClient.Client.Connected)
                 udpClient.Connect(endpoint);
 
-            int dataGramCount = (int)Math.Ceiling(sendingFileSize / (double)DATA_PACKET_SIZE);
+            int dataGramCount = 1 + ((int)sendingFileSize) / DATA_PACKET_SIZE;
             int receivedAcks = 0;
 
             for (int i = 1; i <= dataGramCount; i++)
@@ -322,6 +354,8 @@ namespace TFTP_Client
                 Console.WriteLine("Package sent successfully");
                 //go back to init state
                 this.clientState = new InitState();
+                sendingFileStream.Close();
+                sendingFileStream = null;
 
             }
         

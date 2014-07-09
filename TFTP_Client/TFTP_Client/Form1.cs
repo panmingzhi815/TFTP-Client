@@ -75,10 +75,16 @@ namespace TFTP_Client
 
         private void button3_Click(object sender, EventArgs e)
         {
+            Client.getInstance().setRetrPath(textBox3.Text);
             Client.getInstance().get(textBox2.Text, textBoxIP.Text, textBoxPort.Text); 
         }
 
         private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox3_TextChanged(object sender, EventArgs e)
         {
 
         }
