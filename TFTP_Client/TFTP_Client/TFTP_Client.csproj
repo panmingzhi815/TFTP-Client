@@ -45,11 +45,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.cs" />
-    <Compile Include="States\AckState.cs" />
-    <Compile Include="States\GetState.cs" />
-    <Compile Include="States\InitState.cs" />
+    <Compile Include="States\concrete\AckState.cs" />
+    <Compile Include="States\concrete\GetState.cs" />
+    <Compile Include="States\concrete\InitState.cs" />
     <Compile Include="Client.cs" />
-    <Compile Include="States\ClientState.cs" />
+    <Compile Include="States\abstract\ClientState.cs" />
     <Compile Include="TFTPClientWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -58,9 +58,9 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="States\PutState.cs" />
-    <Compile Include="States\ReceiveState.cs" />
-    <Compile Include="States\SendState.cs" />
+    <Compile Include="States\concrete\PutState.cs" />
+    <Compile Include="States\concrete\ReceiveState.cs" />
+    <Compile Include="States\concrete\SendState.cs" />
     <EmbeddedResource Include="TFTPClientWindow.resx">
       <DependentUpon>TFTPClientWindow.cs</DependentUpon>
     </EmbeddedResource>

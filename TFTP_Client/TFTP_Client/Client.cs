@@ -134,11 +134,11 @@ namespace TFTP_Client
                 connectInitial();
                 log("WriteRequest: ");
                 sendWriteRequest();
-
+                receiveOptionAcknowledgment();
+                
                 Console.WriteLine("waiting for ack");
                 //wait for acknowledgement
-                System.Threading.Thread newThread = new System.Threading.Thread(this.receiveOptionAcknowledgment);
-                newThread.Start();
+                
 
             }
             catch (InvalidOperationException e)
@@ -161,13 +161,10 @@ namespace TFTP_Client
                 //change to send state and send a write request
                 connectInitial();
                 sendReadRequest();
-
+                receiveOptionAcknowledgment();
                 Console.WriteLine("waiting for ack");
-                
-                //wait for acknowledgement (in another thread)
-                System.Threading.Thread newThread = new System.Threading.Thread(this.receiveOptionAcknowledgment);
-                newThread.Start();
-                
+                 
+
 
             } catch (InvalidOperationException e) {
                 //this state is not ok
@@ -230,8 +227,10 @@ namespace TFTP_Client
                     if (MessageBox.Show("The server acknowledged the Write Request. Would you like to continue uploading?", "Continue", MessageBoxButtons.YesNo) == DialogResult.Yes)
                     {
                         Console.WriteLine("beginUploadingDataPackets");
-                        initSocket();
-                        beginSend();
+
+                        System.Threading.Thread newThread = new System.Threading.Thread(this.initSocketAndSend);
+                        newThread.Start();
+
                     }
                     else {
                         resetClient();
@@ -244,8 +243,8 @@ namespace TFTP_Client
                     //LIKE in the Lecture
                     if (MessageBox.Show("The server agreed sending you the file. Would you like to continue?", "Continue", MessageBoxButtons.YesNo) == DialogResult.Yes)
                     {
-                        initSocket();
-                        receive();
+                        System.Threading.Thread newThread = new System.Threading.Thread(this.initSocketAndReceive);
+                        newThread.Start();
                     }
                     else {
                         resetClient();
@@ -270,6 +269,19 @@ namespace TFTP_Client
                 resetClient();
             }
 
+        }
+
+        private void initSocketAndSend()
+        {
+            initSocket();
+            beginSend();
+
+        }
+
+        private void initSocketAndReceive()
+        {
+            initSocket();
+            receive();
         }
 
         private void initSocket()
@@ -384,7 +396,7 @@ namespace TFTP_Client
         private void beginSend(){
 
             int dataGramCount = 1 + ((int)(new FileInfo(filename).Length)) / DATA_PACKET_SIZE; 
-            send(1, dataGramCount);
+            send(1, ref dataGramCount);
 
         }
 
@@ -392,10 +404,11 @@ namespace TFTP_Client
         private int retrSendAck(int i) {
 
             //retr ack for sending packets
-            this.clientState.ack();
+            this.clientState.ack(); 
              
             try
             {
+
                 byte[] datagram = udpClient.Receive(ref endpoint);
 
                 //reset timedoutCountInARow! we received data at this point, so the timeout did not occur!
@@ -463,26 +476,31 @@ namespace TFTP_Client
             }
         }
          
-        private void send(int i, int dataGramCount)
-        {
-            
-            //set state for sending
-            this.clientState.send();
-
-            //send packet
-            this.startPacket();
-            this.sendDataBlock(i);
-            this.commit();
+        private void send(int i, ref int dataGramCount)
+        { 
 
             //get the ack (read the ack number)
-            int receivedAck = retrSendAck(i);
+            int receivedAck;
+            
+            do { 
 
-            if (receivedAck > 0 && receivedAck < dataGramCount)
-            {
-                //recursion, send the next packet
-                send(receivedAck+1, dataGramCount);
+                //set state for sending
+                this.clientState.send();
+
+                //send packet
+                this.startPacket();
+                this.sendDataBlock(i);
+                this.commit();
+
+                receivedAck = retrSendAck(i);
+                //send the next packet
+
+                i = receivedAck + 1;
+
             }
-            else if (receivedAck == dataGramCount)
+            while (receivedAck > 0 && receivedAck < dataGramCount);
+ 
+            if (receivedAck == dataGramCount)
             {
                 Console.WriteLine("Packages sent successfully");
                 this.context.protocolMSGInv("File \"" + Path.GetFileName(filename) + "\" has been sent!");
