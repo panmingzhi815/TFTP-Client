@@ -1,6 +1,4 @@
 TFTP_Client/TFTP_Client/bin/
-TFTP_Client/TFTP_Client/obj/Debug/TFTP_Client.csproj.FileListAbsolute.txt
-TFTP_Client/TFTP_Client/obj/Debug/TFTP_Client.TFTPClientWindow.resources
-TFTP_Client/TFTP_Client/obj/Debug/
 TFTP_Client/TFTP_Client/obj/
 TFTP_Client/TFTP_Client/TFTP_Client_TemporaryKey.pfx
+TFTP_Client/TFTP_Client/TFTP_Client.csproj.user
