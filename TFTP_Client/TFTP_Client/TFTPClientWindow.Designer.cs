@@ -66,7 +66,6 @@
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(362, 20);
             this.textBox1.TabIndex = 1;
-            this.textBox1.Text = "C:\\Users\\Ralf\\Desktop\\Blaue Berge.jpg";
             this.textBox1.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
             // 
             // label1
@@ -139,7 +138,6 @@
             this.textBoxIP.Name = "textBoxIP";
             this.textBoxIP.Size = new System.Drawing.Size(129, 20);
             this.textBoxIP.TabIndex = 4;
-            this.textBoxIP.Text = "192.168.2.144";
             this.textBoxIP.TextChanged += new System.EventHandler(this.textBox4_TextChanged);
             // 
             // label2
@@ -199,7 +197,6 @@
             this.textBox2.Name = "textBox2";
             this.textBox2.Size = new System.Drawing.Size(361, 20);
             this.textBox2.TabIndex = 1;
-            this.textBox2.Text = "Blaue Berge.jpg";
             this.textBox2.TextChanged += new System.EventHandler(this.textBox2_TextChanged);
             // 
             // label4
