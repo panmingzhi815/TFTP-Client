@@ -16,9 +16,9 @@ namespace TFTP_Client
     {
         
         private String host;
-        private static Int16 DATA_PACKET_SIZE = 512;
+        private static readonly Int16 DATA_PACKET_SIZE = 512;
         //private Socket sock = null;
-        private Int16 dstPort = 69;
+        private Int16 dstPort;
         
         private String retrPath;
         private static byte[] DELIMITER = new byte[] { 0x00 }; 
@@ -98,7 +98,7 @@ namespace TFTP_Client
 
                 //for the public static access getInstance we set the variable first
                 _instance = new Client();
-                _instance.sendingPacket = new byte[2052];
+                _instance.sendingPacket = new byte[DATA_PACKET_SIZE+4];
                  
             }
             
